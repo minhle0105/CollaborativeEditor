@@ -16,7 +16,13 @@ const db = mysql.createConnection({
     database: 'CollaborativeEditing',
 });
 
+const ipSet = new Set();
+
 app.get('/', (request, response) => {
+    if (!ipSet.has(request.ip)) {
+        ipSet.add(request.ip);
+        console.log(`Request GET from ${request.ip} at ${new Date()}`);
+    }
     db.query('SELECT * FROM docs', (error, result) => {
         if (error) {
             console.log(error);
@@ -27,6 +33,7 @@ app.get('/', (request, response) => {
 })
 
 app.put('/:id', (request, response) => {
+    console.log(`Request UPDATE from ${request.ip} at ${new Date()}`);
     let id = request.params.id;
     let content = request.body.content;
     db.query('UPDATE docs SET content=(?) WHERE id=(?)', [content, id], (error, result) => {
