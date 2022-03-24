@@ -4,8 +4,14 @@ const mysql = require('mysql')
 const cors = require('cors')
 
 app.use(cors());
-app.listen(3001, () => {
-    console.log("Server is ready");
+
+const PORT = process.env.PORT;
+if (!PORT) {
+    throw new Error("No PORT provided");
+}
+
+app.listen(PORT, () => {
+    console.log(`Server listens on ${PORT}`);
 })
 app.use(express.json())
 
@@ -25,22 +31,26 @@ app.get('/', (request, response) => {
     }
     db.query('SELECT * FROM docs', (error, result) => {
         if (error) {
+            response.status(404).send();
             console.log(error);
         } else {
-            response.send(result);
+            response.status(200).send(result);
+            console.log(`Request GET handled at ${PORT} at ${new Date()} and send back to ${request.ip}`)
         }
     })
 })
 
 app.put('/:id', (request, response) => {
-    console.log(`Request UPDATE from ${request.ip} at ${new Date()}`);
+    console.log(`Request UPDATE sent from ${request.ip} at ${new Date()}`);
     let id = request.params.id;
     let content = request.body.content;
     db.query('UPDATE docs SET content=(?) WHERE id=(?)', [content, id], (error, result) => {
         if (error) {
+            response.status(400).send();
             console.log(error);
         } else {
-            response.send(result);
+            response.status(201).send(result);
+            console.log(`Request UPDATED handled at ${PORT} at ${new Date()} and send back to ${request.ip}`)
         }
     })
 })
