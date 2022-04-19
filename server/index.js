@@ -59,6 +59,4 @@ app.get('/data', (request, response) => {
     })
 })
 
-const ipSet = new Set();
-
 
