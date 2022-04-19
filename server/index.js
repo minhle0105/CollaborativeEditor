@@ -2,18 +2,13 @@ const express = require('express')
 const app = express()
 const mysql = require('mysql')
 const cors = require('cors')
+const http = require('http')
+const { Server } = require('socket.io')
 
 app.use(cors());
-
-const PORT = process.env.PORT;
-if (!PORT) {
-    throw new Error("No PORT provided");
-}
-
-app.listen(PORT, () => {
-    console.log(`Server listens on ${PORT}`);
-})
 app.use(express.json())
+// const PORT = process.env.PORT;
+const PORT = 3002;
 
 const db = mysql.createConnection({
     user: 'root',
@@ -22,35 +17,46 @@ const db = mysql.createConnection({
     database: 'CollaborativeEditing',
 });
 
-const ipSet = new Set();
-
-app.get('/', (request, response) => {
-    if (!ipSet.has(request.ip)) {
-        ipSet.add(request.ip);
-        console.log(`Request GET from ${request.ip} at ${new Date()}`);
+const server = http.createServer(app).listen(PORT, () => {
+    console.log(`Server listening on ${PORT}`);
+});
+const io = new Server(server, {
+    cors: {
+        origin: "http://192.168.0.122:3000",
+        methods: ["GET", "POST", "PUT", "DELETE"]
     }
-    db.query('SELECT * FROM docs', (error, result) => {
+})
+io.on("connection", (socket) => {
+    socket.on("edit", (data) => {
+        let id = data.id;
+        let text = data.text;
+        db.query('UPDATE docs SET content=(?) WHERE id=(?)', [text, id], (error, result) => {
+            if (error) {
+                console.log(`Cannot update ${error}`);
+            } else {
+                db.query('SELECT * FROM docs', (error, result) => {
+                    if (error) {
+                        console.log(error);
+                    }
+                    else {
+                        socket.broadcast.emit("updated_data", result[0].content);
+                    }
+                })
+                console.log(`Request UPDATED handled at ${PORT} at ${new Date()} and send back to ${socket.id}`)
+            }
+        })
+    })
+})
+
+
+app.get('/data', (request, response) => {
+    db.query('SELECT * FROM docs;', (error, result) => {
         if (error) {
-            response.status(404).send();
             console.log(error);
         } else {
-            response.status(200).send(result);
-            console.log(`Request GET handled at ${PORT} at ${new Date()} and send back to ${request.ip}`)
+            response.send(result)
         }
     })
 })
 
-app.put('/:id', (request, response) => {
-    console.log(`Request UPDATE sent from ${request.ip} at ${new Date()}`);
-    let id = request.params.id;
-    let content = request.body.content;
-    db.query('UPDATE docs SET content=(?) WHERE id=(?)', [content, id], (error, result) => {
-        if (error) {
-            response.status(400).send();
-            console.log(error);
-        } else {
-            response.status(201).send(result);
-            console.log(`Request UPDATED handled at ${PORT} at ${new Date()} and send back to ${request.ip}`)
-        }
-    })
-})
+
