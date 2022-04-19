@@ -22,7 +22,7 @@ const server = http.createServer(app).listen(PORT, () => {
 });
 const io = new Server(server, {
     cors: {
-        origin: "http://localhost:3000",
+        origin: "http://192.168.0.122:3000",
         methods: ["GET", "POST", "PUT", "DELETE"]
     }
 })
@@ -34,26 +34,30 @@ io.on("connection", (socket) => {
             if (error) {
                 console.log(`Cannot update ${error}`);
             } else {
-                socket.emit("updated_data", result);
+                db.query('SELECT * FROM docs', (error, result) => {
+                    if (error) {
+                        console.log(error);
+                    }
+                    else {
+                        socket.broadcast.emit("updated_data", result[0].content);
+                    }
+                })
                 console.log(`Request UPDATED handled at ${PORT} at ${new Date()} and send back to ${socket.id}`)
-            }
-        })
-    })
-    socket.on("getData", () => {
-        db.query('SELECT * FROM docs', (error, result) => {
-            if (error) {
-                console.log(`Cannot get ${error}`);
-            }
-            else {
-                socket.emit("get_new_data", result);
             }
         })
     })
 })
 
 
-
-
+app.get('/data', (request, response) => {
+    db.query('SELECT * FROM docs;', (error, result) => {
+        if (error) {
+            console.log(error);
+        } else {
+            response.send(result)
+        }
+    })
+})
 
 const ipSet = new Set();
 
